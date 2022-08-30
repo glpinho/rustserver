@@ -1,13 +1,18 @@
+#![allow(dead_code)]
+
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter, Result as FmtResult},
     str::{self, Utf8Error},
 };
 
-use super::method::{Method, MethodError};
+use super::{
+    method::{Method, MethodError},
+    QueryString, QueryStringValue,
+};
 pub struct Request<'buf> {
     path: &'buf str,
-    query_string: Option<&'buf str>,
+    query_string: Option<QueryString<'buf>>,
     method: Method,
 }
 
@@ -28,7 +33,7 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
         let mut query_string = None;
 
         if let Some(i) = path.find('?') {
-            query_string = Some(&path[i + 1..]);
+            query_string = Some(QueryString::from(&path[i + 1..]));
             path = &path[..i];
         }
 
@@ -52,11 +57,44 @@ fn get_next_word(request: &str) -> Option<(&str, &str)> {
 
 impl<'buf> Debug for Request<'buf> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let mut query = "None";
+        let mut query = String::from("");
 
         if let Some(s) = &self.query_string {
-            query = s;
-        };
+            query.push('{');
+
+            for ele in s.data.iter() {
+                query.push(' ');
+                query.push_str(ele.0);
+                query.push(':');
+
+                match ele.1 {
+                    QueryStringValue::Single(val) => {
+                        query.push(' ');
+                        query.push_str(val);
+                    }
+
+                    QueryStringValue::Multiple(vec) => {
+                        query.push_str(" [");
+
+                        for ele2 in vec.iter() {
+                            query.push(' ');
+                            query.push_str(ele2);
+                            query.push(',');
+                        }
+
+                        query.pop();
+                        query.push_str(" ]");
+                    }
+                }
+
+                query.push(',');
+            }
+
+            query.pop();
+            query.push_str(" }");
+        } else {
+            query.push_str("None");
+        }
 
         write!(
             f,
