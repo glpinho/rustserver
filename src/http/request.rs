@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter, Result as FmtResult},
@@ -10,6 +8,8 @@ use super::{
     method::{Method, MethodError},
     QueryString, QueryStringValue,
 };
+
+#[derive(Debug)]
 pub struct Request<'buf> {
     path: &'buf str,
     query_string: Option<QueryString<'buf>>,
@@ -55,54 +55,54 @@ fn get_next_word(request: &str) -> Option<(&str, &str)> {
     None
 }
 
-impl<'buf> Debug for Request<'buf> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let mut query = String::from("");
+// impl<'buf> Debug for Request<'buf> {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+//         let mut query = String::from("");
 
-        if let Some(s) = &self.query_string {
-            query.push('{');
+//         if let Some(s) = &self.query_string {
+//             query.push('{');
 
-            for ele in s.data.iter() {
-                query.push(' ');
-                query.push_str(ele.0);
-                query.push(':');
+//             for ele in s.data.iter() {
+//                 query.push(' ');
+//                 query.push_str(ele.0);
+//                 query.push(':');
 
-                match ele.1 {
-                    QueryStringValue::Single(val) => {
-                        query.push(' ');
-                        query.push_str(val);
-                    }
+//                 match ele.1 {
+//                     QueryStringValue::Single(val) => {
+//                         query.push(' ');
+//                         query.push_str(val);
+//                     }
 
-                    QueryStringValue::Multiple(vec) => {
-                        query.push_str(" [");
+//                     QueryStringValue::Multiple(vec) => {
+//                         query.push_str(" [");
 
-                        for ele2 in vec.iter() {
-                            query.push(' ');
-                            query.push_str(ele2);
-                            query.push(',');
-                        }
+//                         for ele2 in vec.iter() {
+//                             query.push(' ');
+//                             query.push_str(ele2);
+//                             query.push(',');
+//                         }
 
-                        query.pop();
-                        query.push_str(" ]");
-                    }
-                }
+//                         query.pop();
+//                         query.push_str(" ]");
+//                     }
+//                 }
 
-                query.push(',');
-            }
+//                 query.push(',');
+//             }
 
-            query.pop();
-            query.push_str(" }");
-        } else {
-            query.push_str("None");
-        }
+//             query.pop();
+//             query.push_str(" }");
+//         } else {
+//             query.push_str("None");
+//         }
 
-        write!(
-            f,
-            "Request {{\n\t Method: {} \n\t Path: {} \n\t Query string: {}\n}}",
-            &self.method, &self.path, query
-        )
-    }
-}
+//         write!(
+//             f,
+//             "Request {{\n\t Method: {} \n\t Path: {} \n\t Query string: {}\n}}",
+//             &self.method, &self.path, query
+//         )
+//     }
+// }
 
 impl From<Utf8Error> for ParseError {
     fn from(_: Utf8Error) -> Self {
