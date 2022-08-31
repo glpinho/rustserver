@@ -1,12 +1,14 @@
-use std::{
-    io::{Read, Write},
-    net::TcpListener,
-};
+use crate::http::{response::Response, ParseError, Request, StatusCode};
+use std::{io::Read, net::TcpListener};
 
-use crate::http::{
-    response::{self, Response},
-    Request, StatusCode,
-};
+pub trait Handler {
+    fn handle_request(&mut self, request: &Request) -> Response;
+
+    fn handle_bad_request(&mut self, e: &ParseError) -> Response {
+        println!("Failed to parse request: {}", e);
+        Response::new(StatusCode::BadRequest, None)
+    }
+}
 
 pub struct Server {
     addr: String,
@@ -17,41 +19,36 @@ impl Server {
         Self { addr }
     }
 
-    pub fn run(self) {
+    pub fn run(self, mut handler: impl Handler) {
         let listener = TcpListener::bind(&self.addr).unwrap();
         println!("Listening on {}", self.addr);
 
         loop {
             match listener.accept() {
-                Ok((stream, _)) => Self::process_stream(stream),
+                Ok((stream, _)) => process_stream(stream, &mut handler),
+
                 Err(e) => println!("Failed to establish a connection: {}", e),
             }
         }
     }
 
-    fn process_stream(mut stream: std::net::TcpStream) {
-        let mut buffer = [0; 1024];
+    // fn process_stream(mut stream: std::net::TcpStream, mut handler: &impl Handler) {}
+}
 
-        match stream.read(&mut buffer) {
-            Ok(_) => {
-                let response = match Request::try_from(&buffer[..]) {
-                    Ok(request) => {
-                        dbg!(request);
-                        Response::new(StatusCode::Ok, Some("<h1>It works!</h1>".to_string()))
-                    }
+fn process_stream(mut stream: std::net::TcpStream, handler: &mut impl Handler) {
+    let mut buffer = [0; 1024];
+    match stream.read(&mut buffer) {
+        Ok(_) => {
+            let response = match Request::try_from(&buffer[..]) {
+                Ok(request) => handler.handle_request(&request),
+                Err(e) => handler.handle_bad_request(&e),
+            };
 
-                    Err(e) => {
-                        println!("Failed to parse request: {}", e);
-                        Response::new(StatusCode::BadRequest, None)
-                    }
-                };
-
-                if let Err(e) = response.send(&mut stream) {
-                    println!("Failed to send response: {}", e);
-                }
+            if let Err(e) = response.send(&mut stream) {
+                println!("Failed to send response: {}", e);
             }
-
-            Err(e) => println!("Error while processing stream: {}", e),
         }
+
+        Err(e) => println!("Error while processing stream: {}", e),
     }
 }
